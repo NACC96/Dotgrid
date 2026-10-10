@@ -13,7 +13,7 @@ The build uses exact runtime/style/public allowlists and content-derived release
 
 ## Cloudflare Pages candidate
 
-Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI and dashboard are authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview, and selected **Git integration** for automatic updates. The existing Pages Git connection belongs to a different GitHub owner. Project creation is awaiting the user's browser sign-in to `NACC96` so Pages can connect to this fork.
+Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI and dashboard are authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview, and selected **Git integration** for automatic updates. GitHub browser sign-in to `NACC96` is now confirmed, but project creation still fails with Git-installation error `8000011`. Pages lists a different connected owner; `NACC96` already has the shared Cloudflare Workers and Pages app installed with access to all repositories. Repairing this existing installation or creating a temporary preview awaits a separate user decision because reinstalling the shared app affects other repositories.
 
 Configure the Git-connected project as follows:
 
@@ -27,7 +27,7 @@ Configure the Git-connected project as follows:
 | Automatic production deployments | Disabled pending acceptance |
 | Automatic preview deployments | `feat/ipad-pwa` |
 
-Grant the Pages GitHub app access to the Dotgrid fork only. Keep the existing connection's repository access unchanged. The candidate should be deployed as a preview from `feat/ipad-pwa`, with the actual returned URL recorded after successful deployment.
+Preserve existing GitHub app access during this deployment. Do not narrow its all-repository scope or uninstall the shared installation without explicit authorization, because that could interrupt unrelated builds. A new independent installation should have access to Dotgrid only. The candidate should be deployed as a preview from `feat/ipad-pwa`, with the actual returned URL recorded after successful deployment.
 
 Capture the actual returned preview URL and release ID. Use disposable `.grid` fixtures there. The preview branch alias is suitable for candidate testing, but must not hold the only copy of real work. Fix the permanent production origin before ordinary use; artwork belongs to its browser origin and will not move automatically to another URL. Production publication follows primary-device acceptance and the user's production-origin decision.
 
