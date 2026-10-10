@@ -1,0 +1,56 @@
+{
+  "settings": {
+    "width": 600,
+    "height": 300,
+    "guide": "retained metadata"
+  },
+  "layers": [
+    [
+      {
+        "type": "line",
+        "vertices": [
+          {
+            "x": -15,
+            "y": 15
+          },
+          {
+            "x": 30,
+            "y": 45
+          }
+        ]
+      },
+      {
+        "type": "close",
+        "vertices": []
+      }
+    ],
+    [],
+    []
+  ],
+  "styles": [
+    {
+      "thickness": 3,
+      "strokeLinecap": "round",
+      "strokeLinejoin": "round",
+      "color": "#1b2530",
+      "fill": "none",
+      "mirror_style": 0
+    },
+    {
+      "thickness": 4,
+      "strokeLinecap": "round",
+      "strokeLinejoin": "round",
+      "color": "#17866b",
+      "fill": "none",
+      "mirror_style": 1
+    },
+    {
+      "thickness": 5,
+      "strokeLinecap": "round",
+      "strokeLinejoin": "round",
+      "color": "#a85b32",
+      "fill": "none",
+      "mirror_style": 2
+    }
+  ]
+}

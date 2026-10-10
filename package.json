@@ -1,0 +1,16 @@
+{
+  "name": "dotgrid-ipad",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first grid vector editor for iPad and Apple Pencil",
+  "scripts": {
+    "build": "node scripts/lib/build.js",
+    "start": "node tools/serve.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:browser": "playwright test",
+    "test": "npm run test:unit && npm run build && npm run test:browser"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0"
+  }
+}
