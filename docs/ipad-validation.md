@@ -18,3 +18,22 @@ Run in Safari and installed Home Screen mode:
 - Cache repair retains projects; missing app resources while offline require reconnection.
 
 Record Pass / Fail / Not tested and reproduction notes for each item. No row is passed merely because its desktop test succeeds.
+
+## Acceptance record
+
+| Item | Safari | Home Screen | Evidence / operator notes |
+|---|---|---|---|
+| Device/Pencil/iPadOS identified | Not tested | Not tested | User is not sure of the hardware yet; inspect Settings → General → About and Pencil identification |
+| Rapid taps, palm contacts, captured drags | Not tested | Not tested | Synthetic desktop ownership tests passed; physical routing remains unknown |
+| Two-finger navigation / touch-edit cancellation | Not tested | Not tested | Desktop state tests passed |
+| All tools, styles, layers, keyboard and dimensions | Not tested | Not tested | Chromium/WebKit integration passed |
+| 30-second standard Pencil/pinch traces | Not tested | Not tested | Desktop renderer samples in desktop-benchmarks.json are preliminary evidence only |
+| Saved restart, undo/redo restart, interruption before Saved | Not tested | Not tested | Real browser IndexedDB completion/reopen and failure tests passed |
+| .grid/SVG/PNG reach Files and reopen | Not tested | Not tested | Typed file/download/PNG pixels tested; native destinations untested |
+| Safari-to-Home-Screen library transfer | Not tested | Not tested | Never assume automatic transfer; editable .grid export/import is available |
+| Offline ready and cold airplane-mode launch | Not tested | Not tested | Desktop worker cold-launch/edit/save tests passed |
+| Pending/dirty/other-editor update; one reload | Not tested | Not tested | Desktop old/new/recovery sequence passed |
+| Cache repair and compatible recovery retain projects | Not tested | Not tested | Browser cache-only repair/previous release tests passed |
+| User accepts Pencil responsiveness | Not tested | Not tested | Required before first-release acceptance |
+
+Record the tested HTTPS origin and commit/release in each completed row. Preview and production libraries are separate. Do not place the only copy of real work in a preview library.

@@ -1,0 +1,48 @@
+# Deployment and release operation
+
+The application artifact is `dist/`. The implementation is a release candidate, with physical iPad/Pencil acceptance pending. Do not interpret an automated WebKit pass or a working HTTPS URL as device acceptance.
+
+## Build
+
+```sh
+npm ci
+npm test
+```
+
+The build uses exact runtime/style/public allowlists and content-derived release IDs, with a SHA-256/MIME-checked complete precache. It excludes source maps, Node helpers, tests, fixtures, project files, upstream example assets and debug pages. Only generated `dist/` contents are uploaded. Build setting: `npm run build`; output: `dist`. Do not use repository root as the hosting output.
+
+## Cloudflare Pages candidate
+
+Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI is authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview. Project creation awaits the Git integration versus Direct Upload choice; the commands below are examples until that decision is recorded.
+
+If Direct Upload is chosen, create a Pages project with `master` as production branch and upload the reviewed candidate to a preview branch:
+
+```sh
+wrangler whoami
+wrangler pages project create dotgrid-ipad --production-branch master
+wrangler pages deploy dist --project-name dotgrid-ipad --branch feat/ipad-pwa
+```
+
+Capture the actual returned preview URL and release ID. Use disposable `.grid` fixtures there. The preview branch alias is suitable for candidate testing, but must not hold the only copy of real work. Fix the permanent production origin before ordinary use; artwork belongs to its browser origin and will not move automatically to another URL. Production publication follows primary-device acceptance and the user's production-origin decision.
+
+A Direct Upload Pages project cannot be switched into Git integration later. If automatic GitHub deployment is preferred, create a Git-connected Pages project instead, with build `npm run build` and output `dist`. Do not create both modes under the same project name. [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/), [Wrangler Pages commands](https://developers.cloudflare.com/workers/wrangler/commands/pages/).
+
+The `_headers` file supplies CSP, MIME protection and cache settings. Missing resources must return a genuine 404; `404.html` prevents Pages from treating this editor as a catch-all SPA. HTML, manifest and worker revalidate; only content-hashed scripts/styles receive immutable caching. Check deployed responses independently, including an unknown script path, manifest, PNG icons, CSP and worker scope. [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
+
+## iPad installation and backup
+
+Open the chosen HTTPS URL in Safari, use Share → Add to Home Screen, enable Open as Web App where shown, and Add. Open that Home Screen icon online. Wait for **Offline ready** inside Settings; it verifies the complete controlled-worker cache. Then test a cold airplane-mode launch, edit, wait for **Saved**, and reopen. [Apple installation guide](https://support.apple.com/guide/ipad/ipad8f1f7a29/ipados).
+
+Safari and the installed app can use separate project libraries. Export editable `.grid` projects from Safari and import them in the installed app when needed. Check the actual Files destination after Share/Download; neither a button click nor a Share success alone proves a backup exists. Local storage is subject to browser policy, user clearing and device loss even when persistent storage is requested. [WebKit storage policy](https://webkit.org/blog/14403/updates-to-storage-policy/), [Safari 17.2 installation storage behavior](https://webkit.org/blog/14787/webkit-features-in-safari-17-2/).
+
+## Updates and recovery
+
+Publish a new artifact online. Open installed Dotgrid online or reconnect; a waiting release exposes **Save and update**. Pending construction must be finished/discarded or the update remains postponed. The initiating editor freezes completed edits while checkpointing. Other controlled editors must be Saved, idle and responsive; dirty/pending/unresponsive peers postpone activation. A clean coordinated activation reloads each participating editor once and restores its saved project. Schema version is currently 1.
+
+A provider rollback does not replace code already running on a device. Build a compatible recovery release with a new content-derived release ID and use the same safe-update sequence. Keep the preceding source revision and artifact until recovery checks pass. Do not downgrade IndexedDB schema or delete it as part of an update. [Pages rollback](https://developers.cloudflare.com/pages/configuration/rollbacks/).
+
+**Repair offline cache** refetches only current application shell files, validating each response; it preserves IndexedDB. If the shell has been entirely evicted and cannot launch offline, reconnect first. Do not advise clearing all website data. Export `.grid` backups before origin changes, substantial upgrades or device migration.
+
+## Release evidence
+
+Record source commit, artifact/release ID, app/project schema, preview/production origin, response/header checks and automated results in `docs/implementation.md`. Record device model/Pencil/iPadOS, Safari versus installed mode, power/storage/display conditions, benchmark and Files results in `docs/ipad-validation.md`. All unperformed device checks remain **Not tested**.
