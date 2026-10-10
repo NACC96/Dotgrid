@@ -13,9 +13,26 @@ The build uses exact runtime/style/public allowlists and content-derived release
 
 ## Cloudflare Pages candidate
 
-Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI and dashboard are authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview, and selected **Git integration** for automatic updates. GitHub browser sign-in to `NACC96` is now confirmed, but project creation still fails with Git-installation error `8000011`. Pages lists a different connected owner; `NACC96` already has the shared Cloudflare Workers and Pages app installed with access to all repositories. Repairing this existing installation or creating a temporary preview awaits a separate user decision because reinstalling the shared app affects other repositories.
+The user authorized a temporary Direct Upload project, **`dotgrid-ipad-preview`**, in their personal Cloudflare account. The application runs locally on the device; Pages serves the static shell. No Functions or artwork database was deployed.
 
-Configure the Git-connected project as follows:
+- Candidate testing URL: [feat-ipad-pwa.dotgrid-ipad-preview.pages.dev](https://feat-ipad-pwa.dotgrid-ipad-preview.pages.dev).
+- Immutable deployment URL: [f1945f81.dotgrid-ipad-preview.pages.dev](https://f1945f81.dotgrid-ipad-preview.pages.dev).
+- Preview deployment ID: `f1945f81-6167-4e23-bc32-9d3d87b02c89`; branch: `feat/ipad-pwa`; deployment source: `693fdf0`.
+- Application release: `fd0451ec4ad699cc36ab`; runtime source: `39149e5da1684b190092cd802cecc324b02c81be`; project/IndexedDB schema: `1`.
+
+All 12 public resource bodies matched the local artifact over HTTPS. MIME, CSP, security/cache headers, worker scope and missing-resource 404 checks passed. Chromium and WebKit both reached **Offline ready**, cold-launched offline, saved an edit and reopened it without page errors. See [deployed HTTPS evidence](pages-https-validation.json). This is desktop browser evidence; physical acceptance remains pending. The project's production branch is `master`, and only a Preview deployment has been uploaded.
+
+Updates to this temporary project require a manual upload. Git pushes alone do not deploy it. The initial upload used:
+
+```sh
+wrangler pages deploy dist --project-name dotgrid-ipad-preview --branch feat/ipad-pwa --commit-dirty=true
+```
+
+The dirty flag records the local untracked, frozen planning document; that document is excluded from the upload. The deployed application artifact matches the tracked runtime source. For later uploads, build and verify `dist/`, inspect local changes, then upload the same preview branch and repeat the deployed checks.
+
+**Git integration remains the intended permanent setup.** Creation of `dotgrid-ipad` returned Git-installation error `8000011` after NACC96 sign-in. Pages lists a different connected owner, while NACC96 already has the shared Cloudflare Workers and Pages app installed with access to all repositories. The user chose the temporary preview over reinstalling that shared app. Its installation and repository access remain unchanged; `dotgrid-ipad` has not been created and its name remains available for Git integration.
+
+Once the account connection is resolved, configure the Git-connected project as follows:
 
 | Setting | Candidate value |
 |---|---|
@@ -27,11 +44,11 @@ Configure the Git-connected project as follows:
 | Automatic production deployments | Disabled pending acceptance |
 | Automatic preview deployments | `feat/ipad-pwa` |
 
-Preserve existing GitHub app access during this deployment. Do not narrow its all-repository scope or uninstall the shared installation without explicit authorization, because that could interrupt unrelated builds. A new independent installation should have access to Dotgrid only. The candidate should be deployed as a preview from `feat/ipad-pwa`, with the actual returned URL recorded after successful deployment.
+Preserve existing GitHub app access. Do not narrow its all-repository scope or uninstall the shared installation without explicit authorization, because that could interrupt unrelated builds. A new independent installation should have access to Dotgrid only. Deploy the future Git-connected candidate as a preview from `feat/ipad-pwa` and record its returned URL separately.
 
 Capture the actual returned preview URL and release ID. Use disposable `.grid` fixtures there. The preview branch alias is suitable for candidate testing, but must not hold the only copy of real work. Fix the permanent production origin before ordinary use; artwork belongs to its browser origin and will not move automatically to another URL. Production publication follows primary-device acceptance and the user's production-origin decision.
 
-A Direct Upload Pages project cannot be switched into Git integration later; the selected project mode is Git integration. Do not create a Direct Upload replacement under this name. [Cloudflare Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/), [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/).
+A Direct Upload Pages project cannot be switched into Git integration later. `dotgrid-ipad-preview` is temporary; keep `dotgrid-ipad` reserved for the future Git-connected project. Export/import `.grid` files to move artwork between their origins. [Cloudflare Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/), [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/).
 
 The `_headers` file supplies CSP, MIME protection and cache settings. Missing resources must return a genuine 404; `404.html` prevents Pages from treating this editor as a catch-all SPA. HTML, manifest and worker revalidate; only content-hashed scripts/styles receive immutable caching. The precache fetches HTML at canonical `/` and `/404` URLs while keeping stable internal cache keys: Pages redirects `.html` routes to extensionless paths. Unexpected resource redirects still fail validation. Check deployed responses independently, including those canonical paths, an unknown script path, manifest, PNG icons, CSP and worker scope. [Pages route matching](https://developers.cloudflare.com/pages/configuration/serving-pages/). [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
 

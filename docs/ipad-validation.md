@@ -3,6 +3,8 @@
 Primary iPad, Pencil and iPadOS version: **not yet identified**.
 Physical-device acceptance: **not tested**. Desktop WebKit and synthetic pen events do not establish hardware responsiveness or palm rejection.
 
+Candidate testing origin: [feat-ipad-pwa.dotgrid-ipad-preview.pages.dev](https://feat-ipad-pwa.dotgrid-ipad-preview.pages.dev). Application release: `fd0451ec4ad699cc36ab`; project/IndexedDB schema: `1`. This temporary preview is updated manually; export `.grid` backups before moving to a permanent origin.
+
 Record the device model/model number, Pencil generation, iPadOS, power mode, available storage, refresh capability, application release and database schema before testing.
 
 Run in Safari and installed Home Screen mode:

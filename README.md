@@ -4,6 +4,8 @@ An iPad-first, local grid vector editor adapted from [Hundredrabbits Dotgrid](ht
 
 This is a testable implementation candidate. **Real iPad/Pencil acceptance is pending.** Desktop WebKit and synthetic pen tests cannot establish palm behavior, Pencil feel, Home Screen lifecycle or native Files destinations. The proposed platform floor is iPadOS/Safari 17; the primary device is not yet identified.
 
+Try the [Cloudflare preview](https://feat-ipad-pwa.dotgrid-ipad-preview.pages.dev). Open it in iPad Safari and follow the installation instructions below. This temporary preview receives manual updates; keep editable `.grid` backups before moving to a permanent URL.
+
 ## Run locally
 
 Requires Node.js 22 or later and npm. Runtime code has no third-party dependencies.
