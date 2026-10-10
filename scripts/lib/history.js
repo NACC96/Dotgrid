@@ -1,45 +1,29 @@
 'use strict'
 
-function History () {
-  this.index = 0
+function History (capacity = 20) {
+  this.capacity = capacity
+  this.index = -1
   this.a = []
-
-  this.clear = function () {
-    this.a = []
-    this.index = 0
-  }
-
-  this.push = function (data) {
-    if (this.index < this.a.length - 1) {
-      this.fork()
-    }
-    this.index = this.a.length
-    this.a = this.a.slice(0, this.index)
-    this.a.push(copy(data))
-
-    if (this.a.length > 20) {
-      this.a.shift()
-    }
-  }
-
-  this.fork = function () {
+  const copy = data => data == null ? null : JSON.parse(JSON.stringify(data))
+  this.clear = () => { this.a = []; this.index = -1 }
+  this.reset = data => { this.a = [copy(data)]; this.index = 0 }
+  this.push = data => {
     this.a = this.a.slice(0, this.index + 1)
+    this.a.push(copy(data))
+    if (this.a.length > this.capacity + 1) this.a.shift()
+    this.index = this.a.length - 1
   }
-
-  this.pop = function () {
-    return this.a.pop()
+  this.prev = () => {
+    if (this.index <= 0) return null
+    return copy(this.a[--this.index])
   }
-
-  this.prev = function () {
-    this.index = clamp(this.index - 1, 0, this.a.length - 1)
-    return copy(this.a[this.index])
+  this.next = () => {
+    if (this.index >= this.a.length - 1) return null
+    return copy(this.a[++this.index])
   }
-
-  this.next = function () {
-    this.index = clamp(this.index + 1, 0, this.a.length - 1)
-    return copy(this.a[this.index])
-  }
-
-  function copy (data) { return data ? JSON.parse(JSON.stringify(data)) : [] }
-  function clamp (v, min, max) { return v < min ? min : v > max ? max : v }
+  Object.defineProperties(this, {
+    canUndo: { get: () => this.index > 0 },
+    canRedo: { get: () => this.index < this.a.length - 1 }
+  })
 }
+if (typeof module !== 'undefined') module.exports = History

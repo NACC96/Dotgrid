@@ -1,262 +1,248 @@
 'use strict'
+const RenderGenerator =
+  typeof module !== 'undefined' ? require('./generator.js') : Generator
 
-/* global Image */
-/* global Path2D */
-/* global Generator */
+function LayerPathCache(makePath = (path) => new Path2D(path)) {
+  this.entries = []
+  this.builds = 0
+  let previous = null
+  this.update = (data) => {
+    if (data === previous) return this.entries
+    previous = data
+    data.layers.forEach((layer, index) => {
+      const key = JSON.stringify([
+        layer,
+        data.styles[index].mirror_style,
+        data.settings.size
+      ])
+      if (this.entries[index] && this.entries[index].key === key) return
+      const text = new RenderGenerator(
+        layer,
+        data.styles[index],
+        data.settings.size
+      ).toString()
+      this.entries[index] = { key, path: makePath(text), text }
+      this.builds++
+    })
+    return this.entries
+  }
+}
 
-function Renderer (client) {
+function Renderer(client) {
   this.el = document.createElement('canvas')
   this.el.id = 'guide'
-  this.el.width = 640
-  this.el.height = 640
-  this.el.style.width = '320px'
-  this.el.style.height = '320px'
+  this.el.setAttribute(
+    'aria-label',
+    'Drawing canvas. Apple Pencil draws; two fingers pan and zoom.'
+  )
+  this.el.tabIndex = 0
   this.context = this.el.getContext('2d')
   this.showExtras = true
-
-  this.scale = 2 // window.devicePixelRatio
-
-  this.start = function () {
-    this.update()
+  this.cache = new LayerPathCache()
+  this.metrics = {
+    frames: 0,
+    pathBuilds: 0,
+    samples: [],
+    frameGaps: [],
+    longTasks: 0,
+    backingPixels: 0
   }
-
-  this.update = function (force = false) {
-    this.resize()
-    client.manager.update()
-    const render = new Image()
-    render.onload = () => {
-      this.draw(render)
-    }
-    render.src = client.manager.svg64()
+  this.pointer = null
+  let frame = 0
+  let lastFrame = 0
+  let observer
+  if (
+    typeof PerformanceObserver !== 'undefined' &&
+    PerformanceObserver.supportedEntryTypes.includes('longtask')
+  ) {
+    observer = new PerformanceObserver((list) => {
+      this.metrics.longTasks += list.getEntries().length
+    })
+    observer.observe({ type: 'longtask', buffered: false })
   }
-
-  this.draw = function (render) {
-    this.clear()
-    this.drawMirror()
-    this.drawGrid()
-    this.drawRulers()
-    this.drawRender(render) //
-    this.drawVertices()
-    this.drawHandles()
-    this.drawTranslation()
-    this.drawCursor()
-    this.drawPreview()
+  this.update = () => {
+    if (!frame)
+      frame = requestAnimationFrame((time) => {
+        frame = 0
+        this.draw(time)
+      })
   }
-
-  this.clear = function () {
-    this.context.clearRect(0, 0, this.el.width * this.scale, this.el.height * this.scale)
-  }
-
-  this.toggle = function () {
-    this.showExtras = !this.showExtras
-    this.update()
-    client.interface.update(true)
-  }
-
-  this.resize = function () {
-    const _target = client.getPaddedSize()
-    const _current = { width: this.el.width / this.scale, height: this.el.height / this.scale }
-    const offset = sizeOffset(_target, _current)
-    if (offset.width === 0 && offset.height === 0) {
+  this.resize = () => {
+    const rect = this.el.getBoundingClientRect()
+    const width = Math.max(1, Math.round(rect.width))
+    const height = Math.max(1, Math.round(rect.height))
+    const ratio = Math.min(
+      window.devicePixelRatio || 1,
+      Math.sqrt(16777216 / (width * height))
+    )
+    const backingWidth = Math.round(width * ratio)
+    const backingHeight = Math.round(height * ratio)
+    if (this.el.width === backingWidth && this.el.height === backingHeight)
       return
-    }
-    console.log('Renderer', `Require resize: ${printSize(_target)}, from ${printSize(_current)}`)
-    this.el.width = (_target.width) * this.scale
-    this.el.height = (_target.height) * this.scale
-    this.el.style.width = (_target.width) + 'px'
-    this.el.style.height = (_target.height) + 'px'
+    this.el.width = backingWidth
+    this.el.height = backingHeight
+    this.ratio = ratio
+    if (!client.viewport.width)
+      client.viewport.fit(client.tool.settings.size, width, height)
+    else client.viewport.resize(width, height)
+    this.metrics.backingPixels = backingWidth * backingHeight
+    this.update()
   }
-
-  // Collections
-
-  this.drawMirror = function () {
-    if (!this.showExtras) { return }
-
-    if (client.tool.style().mirror_style === 0) { return }
-
-    const middle = { x: client.tool.settings.size.width, y: client.tool.settings.size.height }
-
-    if (client.tool.style().mirror_style === 1 || client.tool.style().mirror_style === 3) {
-      this.drawRule({ x: middle.x, y: 15 * this.scale }, { x: middle.x, y: (client.tool.settings.size.height) * this.scale })
-    }
-    if (client.tool.style().mirror_style === 2 || client.tool.style().mirror_style === 3) {
-      this.drawRule({ x: 15 * this.scale, y: middle.y }, { x: (client.tool.settings.size.width) * this.scale, y: middle.y })
-    }
+  this.toggle = () => {
+    this.showExtras = !this.showExtras
+    client.update()
   }
-
-  this.drawHandles = function () {
-    if (!this.showExtras) { return }
-
-    for (const segmentId in client.tool.layer()) {
-      const segment = client.tool.layer()[segmentId]
-      for (const vertexId in segment.vertices) {
-        const vertex = segment.vertices[vertexId]
-        this.drawHandle(vertex)
+  this.draw = (time) => {
+    const start = performance.now()
+    const ctx = this.context
+    const viewport = client.viewport
+    const data = client.tool.renderDocument()
+    const size = data.settings.size
+    const paths = this.cache.update(data)
+    const ratio = this.ratio || 1
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, this.el.width, this.el.height)
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+    ctx.fillStyle = '#ebece8'
+    ctx.fillRect(0, 0, viewport.width, viewport.height)
+    ctx.translate(viewport.x, viewport.y)
+    ctx.scale(viewport.scale, viewport.scale)
+    ctx.fillStyle = '#fafbf8'
+    ctx.fillRect(0, 0, size.width, size.height)
+    ctx.strokeStyle = '#c2c8c1'
+    ctx.lineWidth = 1 / viewport.scale
+    ctx.strokeRect(0, 0, size.width, size.height)
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, size.width, size.height)
+    ctx.clip()
+    if (this.showExtras) this.drawGrid(size)
+    for (const index of [2, 1, 0]) {
+      const style = data.styles[index]
+      ctx.lineWidth = style.thickness
+      ctx.strokeStyle = style.color
+      ctx.lineCap = style.strokeLinecap
+      ctx.lineJoin = style.strokeLinejoin
+      if (style.fill !== 'none') {
+        ctx.fillStyle = style.fill
+        ctx.fill(paths[index].path)
       }
+      if (style.color !== 'none' && style.thickness > 0)
+        ctx.stroke(paths[index].path)
     }
-  }
-
-  this.drawVertices = function () {
-    for (const id in client.tool.vertices) {
-      this.drawVertex(client.tool.vertices[id])
+    if (this.showExtras && data.styles[client.tool.index].mirror_style) {
+      const mirror = data.styles[client.tool.index].mirror_style
+      ctx.beginPath()
+      ctx.setLineDash([5 / viewport.scale, 5 / viewport.scale])
+      ctx.strokeStyle = '#a8b6af'
+      ctx.lineWidth = 1 / viewport.scale
+      if (mirror === 1 || mirror === 3) {
+        ctx.moveTo(size.width / 2, 0)
+        ctx.lineTo(size.width / 2, size.height)
+      }
+      if (mirror === 2 || mirror === 3) {
+        ctx.moveTo(0, size.height / 2)
+        ctx.lineTo(size.width, size.height / 2)
+      }
+      ctx.stroke()
+      ctx.setLineDash([])
     }
-  }
-
-  this.drawGrid = function () {
-    if (!this.showExtras) { return }
-
-    const markers = { w: parseInt(client.tool.settings.size.width / 15), h: parseInt(client.tool.settings.size.height / 15) }
-
-    this.context.beginPath()
-    this.context.lineWidth = 2
-    this.context.fillStyle = client.theme.active.b_med
-    for (let x = markers.w - 1; x >= 0; x--) {
-      for (let y = markers.h - 1; y >= 0; y--) {
-        const isStep = x % 4 === 0 && y % 4 === 0
-        // Don't draw margins
-        if (x === 0 || y === 0) { continue }
-        const pos = {
-          x: parseInt(x * 15),
-          y: parseInt(y * 15)
+    const tool = client.tool
+    if (tool.canCast() && tool.operation !== 'close') {
+      const path = new Path2D(
+        new RenderGenerator(
+          [{ type: tool.operation, vertices: tool.vertices }],
+          {},
+          size
+        ).toString()
+      )
+      ctx.strokeStyle = '#677b70'
+      ctx.lineWidth = 1.5 / viewport.scale
+      ctx.setLineDash([6 / viewport.scale, 6 / viewport.scale])
+      ctx.stroke(path)
+      ctx.setLineDash([])
+    }
+    if (this.showExtras || tool.mode !== 'draw')
+      data.layers[tool.index].forEach((segment) =>
+        segment.vertices.forEach((point) => this.dot(point, 2.5, '#8c9c91'))
+      )
+    tool.vertices.forEach((point, index) => {
+      this.dot(point, 5, '#238673')
+      ctx.fillStyle = '#18282c'
+      ctx.font = `${12 / viewport.scale}px system-ui`
+      ctx.fillText(
+        String(index + 1),
+        point.x + 8 / viewport.scale,
+        point.y - 8 / viewport.scale
+      )
+    })
+    if (tool.target) {
+      if (tool.mode.includes('segment') || tool.mode === 'duplicate') {
+        const selected = data.layers[tool.index][tool.target.segmentId]
+        if (selected) {
+          ctx.strokeStyle = '#d36735'
+          ctx.lineWidth = 3 / viewport.scale
+          ctx.stroke(
+            new Path2D(new RenderGenerator([selected], {}, size).toString())
+          )
         }
-        const radius = isStep ? 2.5 : 1.5
-        this.context.moveTo(pos.x * this.scale, pos.y * this.scale)
-        this.context.arc(pos.x * this.scale, pos.y * this.scale, radius, 0, 2 * Math.PI, false)
       }
+      this.dot(tool.target.point, 7, '#d36735')
     }
-    this.context.fill()
-    this.context.closePath()
-  }
-
-  this.drawRulers = function () {
-    if (!client.cursor.translation) { return }
-
-    const pos = client.cursor.translation.to
-    const bottom = (client.tool.settings.size.height * this.scale)
-    const right = (client.tool.settings.size.width * this.scale)
-
-    this.drawRule({ x: pos.x * this.scale, y: 0 }, { x: pos.x * this.scale, y: bottom })
-    this.drawRule({ x: 0, y: pos.y * this.scale }, { x: right, y: pos.y * this.scale })
-  }
-
-  this.drawPreview = function () {
-    const operation = client.cursor.operation && client.cursor.operation.cast ? client.cursor.operation.cast : null
-
-    if (!client.tool.canCast(operation)) { return }
-    if (operation === 'close') { return }
-
-    const path = new Generator([{ vertices: client.tool.vertices, type: operation }]).toString({ x: 0, y: 0 }, 2)
-    const style = {
-      color: client.theme.active.f_med,
-      thickness: 2,
-      strokeLinecap: 'round',
-      strokeLinejoin: 'round',
-      strokeLineDash: [5, 15]
+    if (this.pointer) {
+      ctx.beginPath()
+      ctx.arc(
+        this.pointer.x,
+        this.pointer.y,
+        7 / viewport.scale,
+        0,
+        Math.PI * 2
+      )
+      ctx.strokeStyle = '#238673'
+      ctx.lineWidth = 1 / viewport.scale
+      ctx.stroke()
     }
-    this.drawPath(path, style)
+    ctx.restore()
+    this.metrics.frames++
+    this.metrics.pathBuilds = this.cache.builds
+    this.metrics.samples.push(performance.now() - start)
+    if (lastFrame && time - lastFrame < 1000)
+      this.metrics.frameGaps.push(time - lastFrame)
+    lastFrame = time
+    if (this.metrics.samples.length > 1800) this.metrics.samples.shift()
+    if (this.metrics.frameGaps.length > 1800) this.metrics.frameGaps.shift()
   }
-
-  // Elements
-
-  this.drawVertex = function (pos, radius = 5) {
-    this.context.beginPath()
-    this.context.lineWidth = 2
-    this.context.arc((pos.x * this.scale), (pos.y * this.scale), radius, 0, 2 * Math.PI, false)
-    this.context.fillStyle = client.theme.active.f_low
-    this.context.fill()
-    this.context.closePath()
+  this.drawGrid = (size) => {
+    const ctx = this.context
+    const v = client.viewport
+    // Only visible dots, thinning at low zoom to keep work bounded.
+    const interval = v.scale < 0.4 ? 60 : 15
+    const startX = Math.max(
+      interval,
+      Math.ceil(-v.x / v.scale / interval) * interval
+    )
+    const startY = Math.max(
+      interval,
+      Math.ceil(-v.y / v.scale / interval) * interval
+    )
+    const endX = Math.min(size.width, (v.width - v.x) / v.scale)
+    const endY = Math.min(size.height, (v.height - v.y) / v.scale)
+    ctx.fillStyle = '#c9d2c9'
+    ctx.beginPath()
+    for (let x = startX; x < endX; x += interval)
+      for (let y = startY; y < endY; y += interval) {
+        const radius = (x % 60 === 0 && y % 60 === 0 ? 1.4 : 0.9) / v.scale
+        ctx.moveTo(x + radius, y)
+        ctx.arc(x, y, radius, 0, Math.PI * 2)
+      }
+    ctx.fill()
   }
-
-  this.drawRule = function (from, to) {
-    this.context.beginPath()
-    this.context.moveTo(from.x, from.y)
-    this.context.lineTo(to.x, to.y)
-    this.context.lineCap = 'round'
-    this.context.lineWidth = 3
-    this.context.strokeStyle = client.theme.active.b_low
-    this.context.stroke()
-    this.context.closePath()
+  this.dot = (point, radius, color) => {
+    const ctx = this.context
+    ctx.beginPath()
+    ctx.arc(point.x, point.y, radius / client.viewport.scale, 0, Math.PI * 2)
+    ctx.fillStyle = color
+    ctx.fill()
   }
-
-  this.drawHandle = function (pos, radius = 6) {
-    this.context.beginPath()
-    this.context.arc(Math.abs(pos.x * -this.scale), Math.abs(pos.y * this.scale), radius + 3, 0, 2 * Math.PI, false)
-    this.context.fillStyle = client.theme.active.f_high
-    this.context.fill()
-    this.context.closePath()
-    this.context.beginPath()
-    this.context.arc((pos.x * this.scale), (pos.y * this.scale), radius - 3, 0, 2 * Math.PI, false)
-    this.context.fillStyle = client.theme.active.b_low
-    this.context.fill()
-    this.context.closePath()
-  }
-
-  this.drawPath = function (path, style) {
-    const p = new Path2D(path)
-
-    this.context.strokeStyle = style.color
-    this.context.lineWidth = style.thickness * this.scale
-    this.context.lineCap = style.strokeLinecap
-    this.context.lineJoin = style.strokeLinejoin
-
-    if (style.fill && style.fill !== 'none') {
-      this.context.fillStyle = style.color
-      this.context.fill(p)
-    }
-
-    // Dash
-    this.context.save()
-    if (style.strokeLineDash) { this.context.setLineDash(style.strokeLineDash) } else { this.context.setLineDash([]) }
-    this.context.stroke(p)
-    this.context.restore()
-  }
-
-  this.drawTranslation = function () {
-    if (!client.cursor.translation) { return }
-
-    this.context.save()
-
-    this.context.beginPath()
-    this.context.moveTo((client.cursor.translation.from.x * this.scale), (client.cursor.translation.from.y * this.scale))
-    this.context.lineTo((client.cursor.translation.to.x * this.scale), (client.cursor.translation.to.y * this.scale))
-    this.context.lineCap = 'round'
-    this.context.lineWidth = 5
-    this.context.strokeStyle = client.cursor.translation.multi === true ? client.theme.active.b_inv : client.cursor.translation.copy === true ? client.theme.active.f_med : client.theme.active.f_low
-    this.context.setLineDash([5, 10])
-    this.context.stroke()
-    this.context.closePath()
-
-    this.context.setLineDash([])
-    this.context.restore()
-  }
-
-  this.drawCursor = function (pos = client.cursor.pos, radius = client.tool.style().thickness - 1) {
-    this.context.save()
-
-    this.context.beginPath()
-    this.context.lineWidth = 3
-    this.context.lineCap = 'round'
-    this.context.arc(Math.abs(pos.x * -this.scale), Math.abs(pos.y * this.scale), 5, 0, 2 * Math.PI, false)
-    this.context.strokeStyle = client.theme.active.background
-    this.context.stroke()
-    this.context.closePath()
-
-    this.context.beginPath()
-    this.context.lineWidth = 3
-    this.context.lineCap = 'round'
-    this.context.arc(Math.abs(pos.x * -this.scale), Math.abs(pos.y * this.scale), clamp(radius, 5, 100), 0, 2 * Math.PI, false)
-    this.context.strokeStyle = client.theme.active.f_med
-    this.context.stroke()
-    this.context.closePath()
-
-    this.context.restore()
-  }
-
-  this.drawRender = function (render) {
-    this.context.drawImage(render, 0, 0, this.el.width, this.el.height)
-  }
-
-  function printSize (size) { return `${size.width}x${size.height}` }
-  function sizeOffset (a, b) { return { width: a.width - b.width, height: a.height - b.height } }
-  function clamp (v, min, max) { return v < min ? min : v > max ? max : v }
 }
+if (typeof module !== 'undefined') module.exports = { LayerPathCache, Renderer }

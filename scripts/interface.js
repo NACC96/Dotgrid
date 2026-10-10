@@ -1,165 +1,387 @@
 'use strict'
-
-function Interface (client) {
+function Interface(client) {
   this.el = document.createElement('div')
   this.el.id = 'interface'
-
-  this.el.appendChild(this.menu_el = document.createElement('div'))
-  this.menu_el.id = 'menu'
-
-  this.isVisible = true
-  this.zoom = false
-
-  const options = {
-    cast: {
-      line: { key: 'A', icon: 'M60,60 L240,240' },
-      arc_c: { key: 'S', icon: 'M60,60 A180,180 0 0,1 240,240' },
-      arc_r: { key: 'D', icon: 'M60,60 A180,180 0 0,0 240,240' },
-      bezier: { key: 'F', icon: 'M60,60 Q60,150 150,150 Q240,150 240,240' },
-      close: { key: 'Z', icon: 'M60,60 A180,180 0 0,1 240,240  M60,60 A180,180 0 0,0 240,240' }
-    },
-    toggle: {
-      linecap: { key: 'Q', icon: 'M60,60 L60,60 L180,180 L240,180 L240,240 L180,240 L180,180' },
-      linejoin: { key: 'W', icon: 'M60,60 L120,120 L180,120  M120,180 L180,180 L240,240' },
-      thickness: { key: '', icon: 'M120,90 L120,90 L90,120 L180,210 L210,180 Z M105,105 L105,105 L60,60 M195,195 L195,195 L240,240' },
-      mirror: { key: 'E', icon: 'M60,60 L60,60 L120,120 M180,180 L180,180 L240,240 M210,90 L210,90 L180,120 M120,180 L120,180 L90,210' },
-      fill: { key: 'R', icon: 'M60,60 L60,150 L150,150 L240,150 L240,240 Z' }
-    },
-    misc: {
-      color: { key: 'G', icon: 'M150,60 A90,90 0 0,1 240,150 A-90,90 0 0,1 150,240 A-90,-90 0 0,1 60,150 A90,-90 0 0,1 150,60' }
-    },
-    source: {
-      open: { key: 'c-O', icon: 'M155,65 A90,90 0 0,1 245,155 A90,90 0 0,1 155,245 A90,90 0 0,1 65,155 A90,90 0 0,1 155,65 M155,95 A60,60 0 0,1 215,155 A60,60 0 0,1 155,215 A60,60 0 0,1 95,155 A60,60 0 0,1 155,95 ' },
-      render: { key: 'c-R', icon: 'M155,65 A90,90 0 0,1 245,155 A90,90 0 0,1 155,245 A90,90 0 0,1 65,155 A90,90 0 0,1 155,65 M110,155 L110,155 L200,155 ' },
-      export: { key: 'c-E', icon: 'M155,65 A90,90 0 0,1 245,155 A90,90 0 0,1 155,245 A90,90 0 0,1 65,155 A90,90 0 0,1 155,65 M110,140 L110,140 L200,140 M110,170 L110,170 L200,170' },
-      save: { key: 'c-S', icon: 'M155,65 A90,90 0 0,1 245,155 A90,90 0 0,1 155,245 A90,90 0 0,1 65,155 A90,90 0 0,1 155,65 M110,155 L110,155 L200,155 M110,185 L110,185 L200,185 M110,125 L110,125 L200,125' },
-      grid: { key: 'H', icon: 'M65,155 Q155,245 245,155 M65,155 Q155,65 245,155 M155,125 A30,30 0 0,1 185,155 A30,30 0 0,1 155,185 A30,30 0 0,1 125,155 A30,30 0 0,1 155,125 ' }
-    }
-  }
-
-  const mirrorPaths = [
-    'M60,60 L60,60 L120,120 M180,180 L180,180 L240,240 M210,90 L210,90 L180,120 M120,180 L120,180 L90,210',
-    'M60,60 L240,240 M180,120 L210,90 M120,180 L90,210',
-    'M210,90 L210,90 L90,210 M60,60 L60,60 L120,120 M180,180 L180,180 L240,240',
-    'M60,60 L60,60 L120,120 L180,120 L210,90 M240,240 L240,240 L180,180 L120,180 L90,210',
-    'M120,120 L120,120 L120,120 L180,120 M120,150 L120,150 L180,150 M120,180 L120,180 L180,180 L180,180 L180,180 L240,240 M120,210 L120,210 L180,210 M120,90 L120,90 L180,90 M60,60 L60,60 L120,120  '
+  const fieldDrafts = new Set()
+  this.resetDrafts = () => fieldDrafts.clear()
+  const primitives = [
+    ['line', 'Line'],
+    ['arc_c', 'Arc clockwise'],
+    ['arc_r', 'Arc reverse'],
+    ['arc_c_full', 'Large arc clockwise'],
+    ['arc_r_full', 'Large arc reverse'],
+    ['bezier', 'Quadratic Bézier']
   ]
-
-  this.install = function (host) {
-    host.appendChild(this.el)
+  const modes = [
+    ['draw', 'Add points'],
+    ['move-point', 'Move shared point'],
+    ['move-segment', 'Move segment'],
+    ['duplicate', 'Duplicate segment'],
+    ['move-layer', 'Move layer'],
+    ['delete-point', 'Delete shared point'],
+    ['delete-segment', 'Delete segment']
+  ]
+  const options = (items) =>
+    items
+      .map(([value, label]) => `<option value="${value}">${label}</option>`)
+      .join('')
+  this.el.innerHTML = `
+    <header><div class="brand">dotgrid<span>iPad</span></div><button id="projects" class="project-button">Drawing</button><span id="save-status" role="status" aria-live="polite">Starting…</span><button id="export">Export</button><button id="details-toggle" aria-expanded="false" aria-controls="details">Settings</button></header>
+    <nav aria-label="Drawing tools" class="tools">
+      <label>Tool<select id="mode">${options(modes)}</select></label>
+      <label>Stroke<select id="primitive">${options(primitives)}</select></label>
+      <button id="apply" class="primary">Apply</button><button id="close-path">Close path</button><button id="remove-point">Remove last point</button><button id="cancel">Cancel</button>
+      <span class="separator"></span><button id="undo">Undo</button><button id="redo">Redo</button>
+    </nav>
+    <section class="canvas-area" aria-label="Editor"><div id="canvas-host"></div>
+      <aside id="details" hidden>
+        <h2>Layer style</h2><label>Color<input id="color" type="color"></label><div class="row"><button id="color-apply">Apply color</button><button id="color-cancel">Cancel color</button></div>
+        <label>Thickness<input id="thickness" type="number" min="1" max="100" step="1"></label>
+        <label>Line cap<select id="cap">${options([
+          ['butt', 'Butt'],
+          ['round', 'Round'],
+          ['square', 'Square']
+        ])}</select></label>
+        <label>Line join<select id="join">${options([
+          ['miter', 'Miter'],
+          ['round', 'Round'],
+          ['bevel', 'Bevel']
+        ])}</select></label>
+        <button id="fill">Fill off</button><label>Mirror<select id="mirror">${options(
+          [
+            ['0', 'None'],
+            ['1', 'Horizontal'],
+            ['2', 'Vertical'],
+            ['3', 'Both axes']
+          ]
+        )}</select></label>
+        <h2>Document</h2><div class="row"><label>Width<input id="width" type="number" min="15" max="10000" step="15"></label><label>Height<input id="height" type="number" min="15" max="10000" step="15"></label></div>
+        <button id="size-apply">Apply dimensions</button><button id="merge">Merge all layers</button><button id="erase" class="danger">Clear drawing</button>
+        <h2>App</h2><p id="offline-status" role="status">Checking offline cache…</p><button id="update-app" hidden>Save and update</button><button id="repair">Repair offline cache</button><button id="diagnostics">Diagnostics</button><p class="small">Local projects stay on this device. Export .grid backups to Files.</p>
+      </aside>
+    </section>
+    <footer><div class="layers" role="group" aria-label="Active layer"><button id="layer-0">1 · Front</button><button id="layer-1">2 · Middle</button><button id="layer-2">3 · Back</button></div><span id="construction-status" role="status"></span><button id="cycle-target" hidden>Next target</button><button id="delete-apply" class="danger" hidden>Apply deletion</button><button id="touch-mode" aria-pressed="false">Pencil</button><button id="grid" aria-pressed="true">Grid</button><button id="fit">Fit</button></footer>
+    <div id="notice" role="status" aria-live="polite"></div>`
+  this.get = (id) => this.el.querySelector('#' + id)
+  const click = (id, fn) =>
+    this.get(id).addEventListener('click', () =>
+      Promise.resolve(fn()).catch(client.reportError)
+    )
+  const change = (id, fn) =>
+    this.get(id).addEventListener('change', () =>
+      Promise.resolve(fn()).catch(client.reportError)
+    )
+  this.install = (host) => {
+    host.append(this.el)
+    this.get('canvas-host').append(client.renderer.el)
+    for (const id of [
+      'color',
+      'thickness',
+      'cap',
+      'join',
+      'mirror',
+      'width',
+      'height'
+    ])
+      this.get(id).addEventListener('input', () => fieldDrafts.add(id))
+    click('projects', () => client.showProjects())
+    click('export', () => client.showExport())
+    click('details-toggle', () => {
+      client.input.cancelAll()
+      const details = this.get('details')
+      details.hidden = !details.hidden
+      this.get('details-toggle').setAttribute(
+        'aria-expanded',
+        String(!details.hidden)
+      )
+    })
+    change('mode', () => {
+      const value = this.get('mode').value
+      return client.contextChange(() => {
+        client.tool.clear()
+        client.tool.mode = value
+      })
+    })
+    change('primitive', () => {
+      const value = this.get('primitive').value
+      return client.contextChange(() => {
+        client.tool.operation = value
+      })
+    })
+    click('apply', () => client.perform(() => client.tool.cast()))
+    click('close-path', () => client.perform(() => client.tool.cast('close')))
+    click('remove-point', () =>
+      client.perform(() => client.tool.removeLastPoint())
+    )
+    click('cancel', () => client.perform(() => client.tool.clear()))
+    click('undo', () =>
+      client.contextChange(() => {
+        client.tool.clear()
+        client.document.undo()
+      })
+    )
+    click('redo', () =>
+      client.contextChange(() => {
+        client.tool.clear()
+        client.document.redo()
+      })
+    )
+    for (let index = 0; index < 3; index++)
+      click('layer-' + index, () =>
+        client.contextChange(() => {
+          client.tool.clear()
+          client.tool.index = index
+          fieldDrafts.clear()
+        })
+      )
+    click('color-apply', () => {
+      const value = this.get('color').value
+      fieldDrafts.delete('color')
+      return client.perform(() => client.tool.setStyle('color', value))
+    })
+    click('color-cancel', () => {
+      fieldDrafts.delete('color')
+      this.get('color').value = client.tool.style().color
+    })
+    change('thickness', () => {
+      const value = Number(this.get('thickness').value)
+      fieldDrafts.delete('thickness')
+      return client.perform(() => {
+        if (Number.isFinite(value) && value >= 1 && value <= 100)
+          client.tool.setStyle('thickness', value)
+      })
+    })
+    change('cap', () => {
+      const value = this.get('cap').value
+      fieldDrafts.delete('cap')
+      return client.perform(() => client.tool.setStyle('strokeLinecap', value))
+    })
+    change('join', () => {
+      const value = this.get('join').value
+      fieldDrafts.delete('join')
+      return client.perform(() => client.tool.setStyle('strokeLinejoin', value))
+    })
+    change('mirror', () => {
+      const value = Number(this.get('mirror').value)
+      fieldDrafts.delete('mirror')
+      return client.perform(() => client.tool.setStyle('mirror_style', value))
+    })
+    click('fill', () =>
+      client.perform(() =>
+        client.tool.setStyle(
+          'fill',
+          client.tool.style().fill === 'none'
+            ? client.tool.style().color
+            : 'none'
+        )
+      )
+    )
+    click('size-apply', () => {
+      const width = Number(this.get('width').value)
+      const height = Number(this.get('height').value)
+      return client.contextChange(() => {
+        if (
+          !Number.isFinite(width) ||
+          !Number.isFinite(height) ||
+          width < 15 ||
+          height < 15 ||
+          width > 10000 ||
+          height > 10000
+        ) {
+          client.notice('Dimensions must be between 15 and 10000.')
+          return
+        }
+        fieldDrafts.delete('width')
+        fieldDrafts.delete('height')
+        client.tool.setSize(width, height)
+        client.fit()
+      })
+    })
+    click('merge', () =>
+      client.contextChange(async () => {
+        if (
+          await this.confirm(
+            'Merge layers?',
+            'The merged artwork uses the active layer’s style. Undo can restore the separate layers.'
+          )
+        )
+          client.tool.merge()
+      })
+    )
+    click('erase', () =>
+      client.contextChange(async () => {
+        if (
+          await this.confirm(
+            'Clear drawing?',
+            'This removes artwork from all three layers. Undo can restore it.'
+          )
+        )
+          client.tool.erase()
+      })
+    )
+    click('cycle-target', () =>
+      client.perform(() => {
+        client.tool.cycleTarget()
+        if (client.tool.mode.startsWith('delete')) client.tool.previewDelete()
+      })
+    )
+    click('delete-apply', () => client.perform(() => client.tool.applyDelete()))
+    click('touch-mode', () =>
+      client.contextChange(() => {
+        client.touchEditing = !client.touchEditing
+        client.input.setTouchEditing(client.touchEditing)
+      })
+    )
+    click('grid', () => client.renderer.toggle())
+    click('fit', () => client.fit())
+    click('update-app', () => client.pwa.saveAndUpdate())
+    click('repair', async () => {
+      if (
+        await this.confirm(
+          'Repair offline cache?',
+          'This refreshes application files. Local artwork is retained. Internet is required.'
+        )
+      )
+        await client.pwa.repair()
+    })
+    click('diagnostics', () => client.showDiagnostics())
   }
-
-  this.start = function (host) {
-    let html = ''
-
-    for (const type in options) {
-      const tools = options[type]
-      for (const name in tools) {
-        const tool = tools[name]
-        html += `
-        <svg 
-          id="option_${name}" 
-          title="${capitalize(name)}" 
-          onmouseout="client.interface.out('${type}','${name}')" 
-          onmouseup="client.interface.up('${type}','${name}')" 
-          onmousedown="client.interface.down('${type}','${name}', event)" 
-          onmouseover="client.interface.over('${type}','${name}')" 
-          viewBox="0 0 300 300" 
-          class="icon ${type}">
-          <path id="${name}_path" class="icon_path" d="${tool.icon}"/>${name === 'depth' ? '<path class="icon_path inactive" d=""/>' : ''}
-          <rect ar="${name}" width="300" height="300" opacity="0">
-            <title>${capitalize(name)}${tool.key ? '(' + tool.key + ')' : ''}</title>
-          </rect>
-        </svg>`
+  this.update = () => {
+    const tool = client.tool
+    const style = tool.style()
+    this.get('projects').textContent = client.projectName || 'Drawing'
+    this.get('save-status').textContent = client.saveState
+    this.get('primitive').value = tool.operation
+    this.get('mode').value = tool.mode
+    this.get('apply').disabled =
+      client.editFrozen || tool.mode !== 'draw' || !tool.canCast()
+    this.get('close-path').disabled =
+      client.editFrozen || !tool.canCast('close')
+    this.get('remove-point').disabled =
+      !tool.vertices.length || client.editFrozen
+    this.get('cancel').disabled =
+      !tool.vertices.length && !tool.preview && !tool.target
+    this.get('undo').disabled =
+      !client.document.history.canUndo || client.editFrozen
+    this.get('redo').disabled =
+      !client.document.history.canRedo || client.editFrozen
+    for (let index = 0; index < 3; index++)
+      this.get('layer-' + index).setAttribute(
+        'aria-pressed',
+        String(tool.index === index)
+      )
+    this.get('touch-mode').textContent = client.touchEditing
+      ? 'Touch editing'
+      : 'Pencil'
+    this.get('touch-mode').setAttribute(
+      'aria-pressed',
+      String(client.touchEditing)
+    )
+    this.get('grid').setAttribute(
+      'aria-pressed',
+      String(client.renderer.showExtras)
+    )
+    this.get('construction-status').textContent = tool.vertices.length
+      ? `${tool.vertices.length} pending point${tool.vertices.length === 1 ? '' : 's'} · Apply to keep`
+      : tool.target
+        ? `Segment ${tool.target.segmentId + 1}${tool.mode === 'move-point' || tool.mode === 'delete-point' ? ' · shared point' : ''}`
+        : '15-unit grid'
+    this.get('cycle-target').hidden = tool.hits.length < 2
+    this.get('delete-apply').hidden =
+      !tool.mode.startsWith('delete') || !tool.preview
+    this.get('delete-apply').textContent =
+      `Apply deletion${tool.deletionCount ? ' · ' + tool.deletionCount + ' segment' + (tool.deletionCount === 1 ? '' : 's') : ''}`
+    for (const [id, value] of Object.entries({
+      color: style.color,
+      thickness: style.thickness,
+      cap: style.strokeLinecap,
+      join: style.strokeLinejoin,
+      mirror: style.mirror_style,
+      width: tool.settings.size.width,
+      height: tool.settings.size.height
+    })) {
+      const el = this.get(id)
+      if (!fieldDrafts.has(id) && document.activeElement !== el)
+        el.value = value
+    }
+    this.get('fill').textContent =
+      style.fill === 'none' ? 'Fill off' : 'Fill on'
+    this.get('fill').setAttribute('aria-pressed', String(style.fill !== 'none'))
+    if (client.pwa) {
+      this.get('offline-status').textContent = client.pwa.status
+      this.get('update-app').hidden = !client.pwa.updateAvailable
+    }
+  }
+  this.dialog = (title, message, choices, fields = []) =>
+    new Promise((resolve) => {
+      client.input.cancelAll()
+      const dialog = document.createElement('dialog')
+      dialog.className = 'sheet'
+      const heading = document.createElement('h2')
+      heading.textContent = title
+      dialog.append(heading)
+      const id = 'dialog-title-' + Date.now()
+      heading.id = id
+      dialog.setAttribute('aria-labelledby', id)
+      const paragraph = document.createElement('p')
+      paragraph.textContent = message
+      dialog.append(paragraph)
+      const values = {}
+      for (const field of fields) {
+        const label = document.createElement('label')
+        label.textContent = field.label
+        const input = document.createElement('input')
+        input.type = 'text'
+        input.value = field.value || ''
+        input.maxLength = 120
+        label.append(input)
+        dialog.append(label)
+        values[field.id] = input
       }
-    }
-
-    this.menu_el.innerHTML = html
-
-    // Connect interface
-    for (const type in options) {
-      const tools = options[type]
-      for (const name in tools) {
-        const tool = tools[name]
-        tool.el = document.getElementById('option_' + name)
+      const buttons = document.createElement('div')
+      buttons.className = 'dialog-actions'
+      dialog.append(buttons)
+      let settled = false
+      const finish = (choice) => {
+        if (settled) return
+        settled = true
+        const result = {
+          choice,
+          values: Object.fromEntries(
+            Object.entries(values).map(([key, input]) => [
+              key,
+              input.value.trim()
+            ])
+          )
+        }
+        dialog.close()
+        dialog.remove()
+        resolve(result)
       }
-    }
-
-    this.menu_el.appendChild(client.picker.el)
-  }
-
-  this.over = function (type, name) {
-    client.cursor.operation = {}
-    client.cursor.operation[type] = name
-    this.update(true)
-    client.renderer.update(true)
-  }
-
-  this.out = function (type, name) {
-    client.cursor.operation = ''
-    client.renderer.update(true)
-  }
-
-  this.up = function (type, name) {
-    if (!client.tool[type]) { console.warn(`Unknown option(type): ${type}.${name}`, client.tool); return }
-
-    this.update(true)
-    client.renderer.update(true)
-  }
-
-  this.down = function (type, name, event) {
-    if (!client.tool[type]) { console.warn(`Unknown option(type): ${type}.${name}`, client.tool); return }
-    const mod = event.button === 2 ? -1 : 1
-    client.tool[type](name, mod)
-    this.update(true)
-    client.renderer.update(true)
-  }
-
-  this.prev_operation = null
-
-  this.update = function (force = false, id) {
-    if (this.prev_operation === client.cursor.operation && force === false) { return }
-
-    let multiVertices = null
-    const segments = client.tool.layer()
-    const sumSegments = client.tool.length()
-
-    for (const i in segments) {
-      if (segments[i].vertices.length > 2) { multiVertices = true; break }
-    }
-
-    options.cast.line.el.className.baseVal = !client.tool.canCast('line') ? 'icon inactive' : 'icon'
-    options.cast.arc_c.el.className.baseVal = !client.tool.canCast('arc_c') ? 'icon inactive' : 'icon'
-    options.cast.arc_r.el.className.baseVal = !client.tool.canCast('arc_r') ? 'icon inactive' : 'icon'
-    options.cast.bezier.el.className.baseVal = !client.tool.canCast('bezier') ? 'icon inactive' : 'icon'
-    options.cast.close.el.className.baseVal = !client.tool.canCast('close') ? 'icon inactive' : 'icon'
-    options.toggle.thickness.el.className.baseVal = client.tool.layer().length < 1 ? 'icon inactive' : 'icon'
-    options.toggle.linecap.el.className.baseVal = client.tool.layer().length < 1 ? 'icon inactive' : 'icon'
-    options.toggle.linejoin.el.className.baseVal = client.tool.layer().length < 1 || !multiVertices ? 'icon inactive' : 'icon'
-    options.toggle.mirror.el.className.baseVal = client.tool.layer().length < 1 ? 'icon inactive' : 'icon'
-    options.toggle.fill.el.className.baseVal = client.tool.layer().length < 1 ? 'icon inactive' : 'icon'
-    options.misc.color.el.children[0].style.fill = client.tool.style().color
-    options.misc.color.el.children[0].style.stroke = client.tool.style().color
-    options.misc.color.el.className.baseVal = 'icon'
-    options.source.save.el.className.baseVal = sumSegments < 1 ? 'icon inactive source' : 'icon source'
-    options.source.export.el.className.baseVal = sumSegments < 1 ? 'icon inactive source' : 'icon source'
-    options.source.render.el.className.baseVal = sumSegments < 1 ? 'icon inactive source' : 'icon source'
-    options.source.grid.el.className.baseVal = client.renderer.showExtras ? 'icon inactive source' : 'icon source'
-
-    // Grid
-    document.getElementById('grid_path').setAttribute('d', client.renderer.showExtras ? 'M65,155 Q155,245 245,155 M65,155 Q155,65 245,155 M155,125 A30,30 0 0,1 185,155 A30,30 0 0,1 155,185 A30,30 0 0,1 125,155 A30,30 0 0,1 155,125 ' : 'M65,155 Q155,245 245,155 M65,155 ')
-
-    // Mirror
-    document.getElementById('mirror_path').setAttribute('d', mirrorPaths[client.tool.style().mirror_style])
-    this.prev_operation = client.cursor.operation
-  }
-
-  this.toggle = function () {
-    this.isVisible = !this.isVisible
-    this.el.className = this.isVisible ? 'visible' : 'hidden'
-  }
-
-  function capitalize (str) {
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
-  }
+      for (const choice of choices) {
+        const button = document.createElement('button')
+        button.textContent = choice.label
+        button.className = choice.danger
+          ? 'danger'
+          : choice.primary
+            ? 'primary'
+            : ''
+        button.addEventListener('click', () => finish(choice.id))
+        buttons.append(button)
+      }
+      dialog.addEventListener('cancel', (e) => {
+        e.preventDefault()
+        finish(null)
+      })
+      document.body.append(dialog)
+      dialog.showModal()
+      ;(Object.values(values)[0] || buttons.lastElementChild).focus()
+    })
+  this.confirm = async (title, message) =>
+    (
+      await this.dialog(title, message, [
+        { id: 'yes', label: 'Confirm', danger: true },
+        { id: 'cancel', label: 'Cancel' }
+      ])
+    ).choice === 'yes'
 }

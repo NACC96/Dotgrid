@@ -1,0 +1,168 @@
+{
+  "recordedAt": "2026-10-10T17:56:52.178Z",
+  "environment": "Local macOS Playwright, 120 navigation frames and 120 synthetic document-preview frames per corpus; no physical Pencil or end-to-end latency evidence",
+  "results": [
+    {
+      "engine": "Chromium",
+      "corpus": "small",
+      "segments": 50,
+      "vertices": 108,
+      "pathCommands": 175,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 0.3,
+      "gapsOver33Ms": 1,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    },
+    {
+      "engine": "Chromium",
+      "corpus": "standard",
+      "segments": 500,
+      "vertices": 1083,
+      "pathCommands": 1750,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 0.4,
+      "gapsOver33Ms": 1,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    },
+    {
+      "engine": "Chromium",
+      "corpus": "stress",
+      "segments": 2500,
+      "vertices": 5417,
+      "pathCommands": 8749,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 1.1,
+      "gapsOver33Ms": 1,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    },
+    {
+      "engine": "WebKit",
+      "corpus": "small",
+      "segments": 50,
+      "vertices": 108,
+      "pathCommands": 175,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 1,
+      "gapsOver33Ms": 1,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    },
+    {
+      "engine": "WebKit",
+      "corpus": "standard",
+      "segments": 500,
+      "vertices": 1083,
+      "pathCommands": 1750,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 1,
+      "gapsOver33Ms": 0,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    },
+    {
+      "engine": "WebKit",
+      "corpus": "stress",
+      "segments": 2500,
+      "vertices": 5417,
+      "pathCommands": 8749,
+      "mirror": [
+        0,
+        1,
+        2
+      ],
+      "fill": [
+        "none",
+        "none",
+        "none"
+      ],
+      "dimensions": {
+        "width": 600,
+        "height": 300
+      },
+      "dpr": 2,
+      "frames": 240,
+      "renderP95Ms": 3,
+      "gapsOver33Ms": 1,
+      "longTasksOver50Ms": 0,
+      "backingPixels": 2379776
+    }
+  ]
+}

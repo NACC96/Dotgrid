@@ -3,3 +3,6 @@ builds/
 .DS_Store
 */.DS_Store
 debug.*
+dist/
+test-results/
+playwright-report/
