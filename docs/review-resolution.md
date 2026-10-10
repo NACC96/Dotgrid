@@ -14,6 +14,10 @@ The complete ce-code-review receipt is recorded under run `20261010-115608-b6721
 
 Finding 7 was rejected: removing unused inherited Source compatibility wrappers was discretionary cleanup with no demonstrated defect. Those methods remain; this is not deferred work.
 
+Targeted follow-up verification closed findings 1–6 and 8 with no unresolved findings. Its separate `review-fix-verification.json` preserves the original receipt and records ten focused tests, five actual-Client probes and the final full suite.
+
+A subsequent hosting preflight identified Pages HTML canonical redirects. The cache fetches `/` and `/404` while retaining its stable `index.html`/`404.html` keys, with an update-server fixture that reproduces those redirects. This integration follow-up passed the complete 59-unit/78-browser suite plus Cloudflare local-emulator header, digest and offline lifecycle checks before publication.
+
 The cross-model pass did not run because the available runner terminates quiet/slow runs by timeout, contrary to the user's agent-run rule. Local adversarial review ran instead. No programmatic peer run was launched or interrupted.
 
 Physical Pencil, Files, installed-app lifecycle and sustained iPad performance checks remain **Not tested** in `ipad-validation.md`. Desktop browser tests do not establish device acceptance. Deployment evidence and final automated counts are recorded in `implementation.md`.
