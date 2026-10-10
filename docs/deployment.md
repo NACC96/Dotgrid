@@ -13,19 +13,25 @@ The build uses exact runtime/style/public allowlists and content-derived release
 
 ## Cloudflare Pages candidate
 
-Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI is authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview. Project creation awaits the Git integration versus Direct Upload choice; the commands below are examples until that decision is recorded.
+Cloudflare Pages is the planned static host. No functions, artwork database, paid domain or application server is required. The local Cloudflare CLI and dashboard are authenticated to the user's personal account. The user approved publication to [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid) and a new `dotgrid-ipad` Pages preview, and selected **Git integration** for automatic updates. The existing Pages Git connection belongs to a different GitHub owner. Project creation is awaiting the user's browser sign-in to `NACC96` so Pages can connect to this fork.
 
-If Direct Upload is chosen, create a Pages project with `master` as production branch and upload the reviewed candidate to a preview branch:
+Configure the Git-connected project as follows:
 
-```sh
-wrangler whoami
-wrangler pages project create dotgrid-ipad --production-branch master
-wrangler pages deploy dist --project-name dotgrid-ipad --branch feat/ipad-pwa
-```
+| Setting | Candidate value |
+|---|---|
+| Project | `dotgrid-ipad` |
+| GitHub repository | `NACC96/Dotgrid` |
+| Build command / output | `npm run build` / `dist` |
+| Node version | `22` |
+| Production branch | `master` |
+| Automatic production deployments | Disabled pending acceptance |
+| Automatic preview deployments | `feat/ipad-pwa` |
+
+Grant the Pages GitHub app access to the Dotgrid fork only. Keep the existing connection's repository access unchanged. The candidate should be deployed as a preview from `feat/ipad-pwa`, with the actual returned URL recorded after successful deployment.
 
 Capture the actual returned preview URL and release ID. Use disposable `.grid` fixtures there. The preview branch alias is suitable for candidate testing, but must not hold the only copy of real work. Fix the permanent production origin before ordinary use; artwork belongs to its browser origin and will not move automatically to another URL. Production publication follows primary-device acceptance and the user's production-origin decision.
 
-A Direct Upload Pages project cannot be switched into Git integration later. If automatic GitHub deployment is preferred, create a Git-connected Pages project instead, with build `npm run build` and output `dist`. Do not create both modes under the same project name. [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/), [Wrangler Pages commands](https://developers.cloudflare.com/workers/wrangler/commands/pages/).
+A Direct Upload Pages project cannot be switched into Git integration later; the selected project mode is Git integration. Do not create a Direct Upload replacement under this name. [Cloudflare Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/), [Cloudflare Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/).
 
 The `_headers` file supplies CSP, MIME protection and cache settings. Missing resources must return a genuine 404; `404.html` prevents Pages from treating this editor as a catch-all SPA. HTML, manifest and worker revalidate; only content-hashed scripts/styles receive immutable caching. The precache fetches HTML at canonical `/` and `/404` URLs while keeping stable internal cache keys: Pages redirects `.html` routes to extensionless paths. Unexpected resource redirects still fail validation. Check deployed responses independently, including those canonical paths, an unknown script path, manifest, PNG icons, CSP and worker scope. [Pages route matching](https://developers.cloudflare.com/pages/configuration/serving-pages/). [Pages headers](https://developers.cloudflare.com/pages/configuration/headers/).
 
