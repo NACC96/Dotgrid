@@ -1,102 +1,119 @@
 'use strict'
 
-/* global FileReader */
-/* global MouseEvent */
+function sourceLibrary () { return typeof module !== 'undefined' ? require('../projects.js').ProjectLibrary : ProjectLibrary }
+const sourceError = typeof module !== 'undefined' ? require('../projects.js').projectError : projectError
 
 function Source (client) {
   this.cache = {}
+  this.install = () => {}
+  this.start = () => this.new()
+  this.new = () => { this.cache = {} }
 
-  this.install = () => {
+  this.read = async (file, callback, store = false) => {
+    if (!file) return null
+    if (file.size > sourceLibrary().LIMITS.maxJsonBytes) throw sourceError('RESOURCE_LIMIT', 'This .grid file exceeds the provisional 10 MiB import limit. The current drawing has been preserved.')
+    let text
+    try {
+      if (typeof file.text === 'function') text = await file.text()
+      else text = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = () => reject(reader.error || new Error('The selected file could not be read.'))
+        reader.onabort = () => resolve(null)
+        reader.readAsText(file, 'UTF-8')
+      })
+    } catch (error) { throw sourceError('FILE_READ_FAILED', 'The selected file could not be read. Choose it again; the current drawing has been preserved.', error) }
+    if (text === null) return null
+    const payload = sourceLibrary().validate(text)
+    if (callback) await callback(file, JSON.stringify(payload))
+    if (store) this.cache[file.name] = payload
+    return payload
   }
 
-  this.start = () => {
-    this.new()
-  }
-
-  this.new = () => {
-    console.log('Source', 'New file..')
-    this.cache = {}
-  }
-
-  this.open = (ext, callback, store = false) => {
-    console.log('Source', 'Open file..')
+  // Invoke from a user action. The callback receives the fully validated copy;
+  // neither picking nor cancelling changes the active document.
+  this.choose = callback => new Promise((resolve, reject) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.onchange = (e) => {
-      const file = e.target.files[0]
-      if (file.name.indexOf('.' + ext) < 0) { console.warn('Source', `Skipped ${file.name}`); return }
-      this.read(file, callback, store)
+    input.accept = '.grid,application/json'
+    input.setAttribute('aria-label', 'Import a Dotgrid drawing')
+    input.style.position = 'fixed'
+    input.style.left = '-10000px'
+    let settled = false
+    const finish = (value, error) => {
+      if (settled) return
+      settled = true
+      input.remove()
+      if (error) reject(error)
+      else resolve(value)
     }
-    input.click()
-  }
+    input.addEventListener('cancel', () => finish(null), { once: true })
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0]
+      if (!file) { finish(null); return }
+      try {
+        const payload = await this.read(file)
+        if (payload && callback) await callback(payload, file)
+        finish(payload)
+      } catch (error) { finish(null, error) }
+    }, { once: true })
+    document.body.appendChild(input)
+    try { input.click() } catch (error) { finish(null, sourceError('FILE_PICKER_FAILED', 'The file picker could not open. Try Import again.', error)) }
+  })
 
-  this.load = (ext, callback) => {
-    console.log('Source', 'Load files..')
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.setAttribute('multiple', 'multiple')
-    input.onchange = (e) => {
-      for (const file of e.target.files) {
-        if (file.name.indexOf('.' + ext) < 0) { console.warn('Source', `Skipped ${file.name}`); continue }
-        this.read(file, this.store)
-      }
+  this.canShare = file => {
+    const navigator = globalThis.navigator
+    if (!file || !navigator || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return false
+    try { return navigator.canShare({ files: [file] }) } catch (error) { return false }
+  }
+  this.share = async file => {
+    if (!this.canShare(file)) throw sourceError('SHARE_UNAVAILABLE', 'This browser cannot share this file. Use Download to keep a copy in Files.')
+    try {
+      // No asynchronous preparation precedes this call: Share gets the fresh
+      // activation from the user's tap on the already prepared file.
+      await globalThis.navigator.share({ files: [file] })
+      return true
+    } catch (error) {
+      if (error.name === 'AbortError') return false
+      throw sourceError('SHARE_FAILED', 'Sharing failed. The prepared file is still available; try Share again or use Download.', error)
     }
-    input.click()
   }
-
-  this.store = (file, content) => {
-    console.info('Source', 'Stored ' + file.name)
-    this.cache[file.name] = content
-  }
-
-  this.save = (name, content, type = 'text/plain', callback) => {
-    this.saveAs(name, content, type, callback)
-  }
-
-  this.saveAs = (name, ext, content, type = 'text/plain', callback) => {
-    console.log('Source', 'Save new file..')
-    this.write(name, ext, content, type, callback)
-  }
-
-  // I/O
-
-  this.read = (file, callback, store = false) => {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const res = event.target.result
-      if (callback) { callback(file, res) }
-      if (store) { this.store(file, res) }
-    }
-    reader.readAsText(file, 'UTF-8')
-  }
-
-  this.write = (name, ext, content, type, settings = 'charset=utf-8') => {
+  this.download = file => {
+    if (!(file instanceof Blob)) throw sourceError('INVALID_FILE', 'Prepare an export file before downloading it.')
+    if (!globalThis.URL || typeof URL.createObjectURL !== 'function') throw sourceError('DOWNLOAD_UNAVAILABLE', 'This browser cannot prepare a download. Try Share or another supported browser.')
+    const url = URL.createObjectURL(file)
     const link = document.createElement('a')
-    link.setAttribute('download', `${name}-${timestamp()}.${ext}`)
-    if (type === 'image/png' || type === 'image/jpeg') {
-      link.setAttribute('href', content)
-    } else {
-      link.setAttribute('href', 'data:' + type + ';' + settings + ',' + encodeURIComponent(content))
+    link.href = url
+    link.download = file.name || 'Drawing.grid'
+    document.body.appendChild(link)
+    try { link.click() } catch (error) {
+      URL.revokeObjectURL(url)
+      throw sourceError('DOWNLOAD_FAILED', 'The download could not start. The prepared file is still available; try again.', error)
+    } finally { link.remove() }
+    // Safari may consume the URL after click returns. Retain it through that
+    // handoff, then release it without retaining the export indefinitely.
+    const timer = setTimeout(() => URL.revokeObjectURL(url), 60000)
+    if (timer && typeof timer.unref === 'function') timer.unref()
+    return url
+  }
+
+  // Compatibility for the existing file and clipboard entry points.
+  this.open = (ext, callback) => this.choose((payload, file) => callback && callback(file, JSON.stringify(payload)))
+  this.load = (ext, callback) => this.open(ext, callback)
+  this.store = (file, payload) => { this.cache[file.name] = payload }
+  this.write = (name, ext, content, type = 'text/plain') => {
+    const mime = ext === 'grid' ? 'application/json' : type
+    let parts = [content]
+    if (typeof content === 'string' && content.startsWith('data:')) {
+      const comma = content.indexOf(',')
+      const header = content.slice(0, comma)
+      const body = content.slice(comma + 1)
+      parts = [header.includes(';base64') ? Uint8Array.from(atob(body), character => character.charCodeAt(0)) : decodeURIComponent(body)]
     }
-    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+    return this.download(new File(parts, `${name || 'Drawing'}.${ext}`, { type: mime }))
   }
-
-  function timestamp (d = new Date(), e = new Date(d)) {
-    return `${arvelie()}-${neralie()}`
-  }
-
-  function arvelie (date = new Date()) {
-    const start = new Date(date.getFullYear(), 0, 0)
-    const diff = (date - start) + ((start.getTimezoneOffset() - date.getTimezoneOffset()) * 60 * 1000)
-    const doty = Math.floor(diff / 86400000) - 1
-    const y = date.getFullYear().toString().substr(2, 2)
-    const m = doty === 364 || doty === 365 ? '+' : String.fromCharCode(97 + Math.floor(doty / 14)).toUpperCase()
-    const d = `${(doty === 365 ? 1 : doty === 366 ? 2 : (doty % 14)) + 1}`.padStart(2, '0')
-    return `${y}${m}${d}`
-  }
-
-  function neralie (d = new Date(), e = new Date(d)) {
-    const ms = e - d.setHours(0, 0, 0, 0)
-    return (ms / 8640 / 10000).toFixed(6).substr(2, 6)
-  }
+  this.saveAs = (name, ext, content, type) => this.write(name, ext, content, type)
+  this.save = (name, content, type = 'application/json') => this.write(name, 'grid', content, type)
 }
+
+if (typeof module !== 'undefined') module.exports = { Source }

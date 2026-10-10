@@ -20,9 +20,11 @@ function GridDocument (data = GridDocument.empty()) {
   this.edit = (label, mutate) => {
     const draft = this.snapshot()
     mutate(draft)
-    if (JSON.stringify(draft) === JSON.stringify(this.data)) return false
-    this.data = draft
-    this.history.push(draft)
+    const validator = typeof module !== 'undefined' ? require('./projects.js').ProjectLibrary : ProjectLibrary
+    const validated = validator.validate(draft)
+    if (JSON.stringify(validated) === JSON.stringify(this.data)) return false
+    this.data = validated
+    this.history.push(validated)
     this.revision++
     notify(label, 'edit')
     return true

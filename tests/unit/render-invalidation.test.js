@@ -1,0 +1,20 @@
+'use strict'
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const { GridDocument } = require('../../scripts/document.js')
+const { LayerPathCache } = require('../../scripts/renderer.js')
+test('cursor-only frames reuse paths; geometry, mirror and bounds invalidate necessary layers', () => {
+  let builds = 0
+  const cache = new LayerPathCache(path => { builds++; return path })
+  const document = new GridDocument()
+  cache.update(document.data); cache.update(document.data)
+  assert.equal(builds, 3)
+  document.edit('Stroke color', data => { data.styles[0].color = '#ffffff' })
+  cache.update(document.data); assert.equal(builds, 3)
+  document.edit('Line', data => { data.layers[1].push({ type: 'line', vertices: [{ x: 15, y: 15 }, { x: 30, y: 30 }] }) })
+  cache.update(document.data); assert.equal(builds, 4)
+  document.edit('Mirror', data => { data.styles[1].mirror_style = 1 })
+  cache.update(document.data); assert.equal(builds, 5)
+  document.edit('Bounds', data => { data.settings.size.width = 800 })
+  cache.update(document.data); assert.equal(builds, 8)
+})

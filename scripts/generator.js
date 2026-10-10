@@ -2,7 +2,8 @@
 
 /* global client */
 
-function Generator (layer, style) {
+function Generator (layer, style, size) {
+  const bounds = size || (typeof client !== 'undefined' && client.tool ? client.tool.settings.size : { width: 600, height: 300 })
   this.layer = layer
   this.style = style
 
@@ -12,13 +13,13 @@ function Generator (layer, style) {
     for (const k1 in l) {
       const seg = l[k1]
       for (const k2 in seg.vertices) {
-        if (mirror === 1 || mirror === 3) { seg.vertices[k2].x = (client.tool.settings.size.width) - seg.vertices[k2].x }
-        if (mirror === 2 || mirror === 3) { seg.vertices[k2].y = (client.tool.settings.size.height) - seg.vertices[k2].y }
+        if (mirror === 1 || mirror === 3) { seg.vertices[k2].x = (bounds.width) - seg.vertices[k2].x }
+        if (mirror === 2 || mirror === 3) { seg.vertices[k2].y = (bounds.height) - seg.vertices[k2].y }
         // Offset
         seg.vertices[k2].x += offset.x
         seg.vertices[k2].y += offset.y
         // Rotate
-        const center = { x: (client.tool.settings.size.width / 2) + offset.x + (7.5), y: (client.tool.settings.size.height / 2) + offset.y + 30 }
+        const center = { x: (bounds.width / 2) + offset.x + (7.5), y: (bounds.height / 2) + offset.y + 30 }
         seg.vertices[k2] = rotatePoint(seg.vertices[k2], center, angle)
         // Scale
         seg.vertices[k2].x *= scale
@@ -116,3 +117,5 @@ function Generator (layer, style) {
   function copy (data) { return data ? JSON.parse(JSON.stringify(data)) : [] }
   function rotatePoint (point, origin, angle) { angle = angle * Math.PI / 180.0; return { x: (Math.cos(angle) * (point.x - origin.x) - Math.sin(angle) * (point.y - origin.y) + origin.x).toFixed(1), y: (Math.sin(angle) * (point.x - origin.x) + Math.cos(angle) * (point.y - origin.y) + origin.y).toFixed(1) } }
 }
+
+if (typeof module !== 'undefined') module.exports = Generator

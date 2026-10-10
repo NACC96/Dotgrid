@@ -1,90 +1,89 @@
 'use strict'
 
-/* global XMLSerializer */
-/* global btoa */
-/* global Image */
-/* global Blob */
+function managerLibrary () { return typeof module !== 'undefined' ? require('./projects.js').ProjectLibrary : ProjectLibrary }
+function managerGenerator () { if (typeof module === 'undefined') return Generator; const exported = require('./generator.js'); return exported.Generator || exported }
+function managerEscape (value) { return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[character]) }
+const managerError = typeof module !== 'undefined' ? require('./projects.js').projectError : projectError
 
 function Manager (client) {
-  // Create SVG parts
-  this.el = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  this.el.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-  this.el.setAttribute('baseProfile', 'full')
-  this.el.setAttribute('version', '1.1')
-  this.el.style.fill = 'none'
+  const snapshot = () => managerLibrary().validate(client.document && typeof client.document.snapshot === 'function'
+    ? (client.document.data || client.document.snapshot())
+    : { settings: client.tool.settings, layers: client.tool.layers, styles: client.tool.styles })
+  const title = () => client.projectName || 'Drawing'
+  const filename = format => `${String(title()).replace(/[\u0000-\u001f/\\:]/g, '-').trim() || 'Drawing'}.${format}`
+  const paths = data => data.layers.map((layer, index) => new (managerGenerator())(layer, data.styles[index], data.settings.size).toString())
 
-  this.layers = []
-
-  this.install = function () {
-    this.el.appendChild(this.layers[2] = document.createElementNS('http://www.w3.org/2000/svg', 'path'))
-    this.el.appendChild(this.layers[1] = document.createElementNS('http://www.w3.org/2000/svg', 'path'))
-    this.el.appendChild(this.layers[0] = document.createElementNS('http://www.w3.org/2000/svg', 'path'))
+  const serializeSVG = data => {
+    const { width, height } = data.settings.size
+    const geometry = paths(data)
+    const layers = [2, 1, 0].map(index => {
+      const style = data.styles[index]
+      return `<path data-layer="${index}" d="${managerEscape(geometry[index])}" stroke="${managerEscape(style.color)}" fill="${managerEscape(style.fill)}" stroke-width="${managerEscape(style.thickness)}" stroke-linecap="${managerEscape(style.strokeLinecap)}" stroke-linejoin="${managerEscape(style.strokeLinejoin)}"/>`
+    }).join('')
+    return `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" overflow="hidden"><title>${managerEscape(title())}</title><metadata>${managerEscape(JSON.stringify(data))}</metadata>${layers}</svg>`
   }
+  this.svg = input => serializeSVG(managerLibrary().validate(input))
+  this.toString = () => serializeSVG(snapshot())
+  this.install = () => {}
+  this.update = () => {
+    const xml = this.toString()
+    if (typeof DOMParser !== 'undefined') this.el = new DOMParser().parseFromString(xml, 'image/svg+xml').documentElement
+    return xml
+  }
+  this.el = { get outerHTML () { return client.manager ? client.manager.toString() : '' } }
 
-  this.update = function () {
-    this.el.setAttribute('width', (client.tool.settings.size.width) + 'px')
-    this.el.setAttribute('height', (client.tool.settings.size.height) + 'px')
-    this.el.style.width = (client.tool.settings.size.width)
-    this.el.style.height = client.tool.settings.size.height
-
-    const styles = client.tool.styles
-    const paths = client.tool.paths()
-
-    for (const id in this.layers) {
-      const style = styles[id]
-      const path = paths[id]
-      const layer = this.layers[id]
-
-      layer.style.strokeWidth = style.thickness
-      layer.style.strokeLinecap = style.strokeLinecap
-      layer.style.strokeLinejoin = style.strokeLinejoin
-      layer.style.stroke = style.color
-      layer.style.fill = style.fill
-
-      layer.setAttribute('d', path)
+  this.prepare = async (format, { scale = 2, maxPixels = 16777216 } = {}) => {
+    const data = snapshot()
+    const preparedName = filename(format)
+    if (format === 'grid') return new File([JSON.stringify(data)], preparedName, { type: 'application/json' })
+    if (format === 'svg') return new File([serializeSVG(data)], preparedName, { type: 'image/svg+xml' })
+    if (format !== 'png') throw managerError('UNSUPPORTED_FORMAT', 'Choose .grid, SVG, or PNG for this export.')
+    const { width, height } = data.settings.size
+    const pixelWidth = Math.ceil(width * scale)
+    const pixelHeight = Math.ceil(height * scale)
+    // This ceiling is provisional until measured on supported iPads. Check it
+    // before any canvas allocation; UI can offer a smaller explicit scale.
+    if (!Number.isFinite(scale) || scale <= 0 || !Number.isSafeInteger(maxPixels) || maxPixels <= 0 || !Number.isSafeInteger(pixelWidth) || !Number.isSafeInteger(pixelHeight) || pixelWidth * pixelHeight > maxPixels) {
+      throw managerError('RASTER_LIMIT', 'This PNG exceeds the raster allocation limit. Choose a lower export resolution or export SVG/.grid instead.')
+    }
+    if (typeof document === 'undefined' || typeof Path2D === 'undefined') throw managerError('RASTER_UNAVAILABLE', 'PNG export requires Canvas2D and Path2D. SVG and .grid backups are still available.')
+    let canvas
+    try {
+      canvas = document.createElement('canvas')
+      canvas.width = pixelWidth
+      canvas.height = pixelHeight
+      const context = canvas.getContext('2d')
+      if (!context) throw managerError('RASTER_UNAVAILABLE', 'The browser could not allocate the PNG canvas. Try a smaller resolution or export SVG/.grid.')
+      context.scale(scale, scale)
+      context.beginPath()
+      context.rect(0, 0, width, height)
+      context.clip()
+      const geometry = paths(data)
+      for (const index of [2, 1, 0]) {
+        const style = data.styles[index]
+        const path = new Path2D(geometry[index])
+        context.lineWidth = style.thickness
+        context.lineCap = style.strokeLinecap
+        context.lineJoin = style.strokeLinejoin
+        if (style.fill !== 'none') { context.fillStyle = style.fill; context.fill(path) }
+        if (style.color !== 'none' && style.thickness > 0) { context.strokeStyle = style.color; context.stroke(path) }
+      }
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(result => result ? resolve(result) : reject(managerError('RASTER_ENCODING_FAILED', 'The browser could not encode this PNG. Try a smaller resolution or export SVG/.grid.')), 'image/png')
+      })
+      return new File([blob], preparedName, { type: 'image/png' })
+    } catch (error) {
+      if (error.code) throw error
+      throw managerError('RASTER_FAILED', 'PNG preparation failed. Try a smaller resolution or export SVG/.grid; the drawing has been preserved.', error)
+    } finally {
+      if (canvas) { canvas.width = 0; canvas.height = 0 }
     }
   }
 
-  this.svg64 = function () {
-    const xml = new XMLSerializer().serializeToString(this.el)
-    const svg64 = btoa(xml)
-    const b64Start = 'data:image/svg+xml;base64,'
-    return b64Start + svg64
-  }
-
-  // Exporters
-
-  this.toPNG = function (size = client.tool.settings.size, callback) {
-    this.update()
-
-    const image64 = this.svg64()
-    const img = new Image()
-    const canvas = document.createElement('canvas')
-    canvas.width = (size.width) * 2
-    canvas.height = (size.height) * 2
-    img.onload = function () {
-      canvas.getContext('2d').drawImage(img, 0, 0, (size.width) * 2, (size.height) * 2)
-      callback(canvas.toDataURL('image/png'))
-    }
-    img.src = image64
-  }
-
-  this.toSVG = function (callback) {
-    this.update()
-
-    const image64 = this.svg64()
-    callback(image64, 'export.svg')
-  }
-
-  this.toGRID = function (callback) {
-    this.update()
-
-    const text = client.tool.export()
-    const file = new Blob([text], { type: 'text/plain' })
-    callback(URL.createObjectURL(file), 'export.grid')
-  }
-
-  this.toString = () => {
-    return new XMLSerializer().serializeToString(this.el)
-  }
+  // Existing callers can transition to prepared files without stale SVG data.
+  this.toSVG = async callback => { const file = await this.prepare('svg'); if (callback) callback(file, file.name); return file }
+  this.toGRID = async callback => { const file = await this.prepare('grid'); if (callback) callback(file, file.name); return file }
+  this.toPNG = async (size, callback) => { const file = await this.prepare('png'); if (callback) callback(file, file.name); return file }
 }
+
+if (typeof module !== 'undefined') module.exports = { Manager, managerEscape }
