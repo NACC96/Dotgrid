@@ -1,6 +1,6 @@
 # Implementation evidence — Dotgrid iPad candidate
 
-Recorded October 10, 2026. Software implementation is present locally; **first-release acceptance is incomplete** until an actual iPad/Pencil passes the device checklist and a permanent production origin is accepted.
+Recorded October 10, 2026. Software implementation is published in [PR #1](https://github.com/NACC96/Dotgrid/pull/1); **first-release acceptance is incomplete** until an actual iPad/Pencil passes the device checklist and a permanent production origin is accepted.
 
 The reviewed plan remains unchanged. Its SHA-256 is `643772baec72fedbf747fd3ab558006162c80b969d75a90fee87e4150eef2d7d`. Upstream baseline is `af10366e69ae02bc36cc81522cdd6fbf7ea17238`; implementation branch is `feat/ipad-pwa`. Candidate runtime source commit is `39149e5da1684b190092cd802cecc324b02c81be`.
 
@@ -55,4 +55,4 @@ The complete ce-code-review receipt is run `20261010-115608-b6721c24` under `/tm
 
 ## Release state
 
-The user authorized a GitHub fork and Cloudflare Pages preview. The fork is [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid); the ready-for-review branch is `feat/ipad-pwa`. The application release is `fd0451ec4ad699cc36ab` with project/IndexedDB schema version 1. Cloudflare project creation awaits the Git integration versus Direct Upload decision, because that mode cannot be converted later. No preview is deployed yet. Production is not approved by a desktop test result. Provisional limits (10 MiB JSON, 50k geometry items, 10k dimensions, 16,777,216 raster pixels) require actual-device measurement.
+The user authorized a GitHub fork and Cloudflare Pages preview. The fork is [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid); branch `feat/ipad-pwa` is published in ready-for-review [PR #1](https://github.com/NACC96/Dotgrid/pull/1). The seven corrected review findings and remaining device acceptance are also recorded in [the PR review comment](https://github.com/NACC96/Dotgrid/pull/1#issuecomment-6100993039). The application release is `fd0451ec4ad699cc36ab` with project/IndexedDB schema version 1. Cloudflare project creation awaits the Git integration versus Direct Upload decision, because Direct Upload cannot be converted to Git integration later. No preview is deployed yet. Production is not approved by a desktop test result. Provisional limits (10 MiB JSON, 50k geometry items, 10k dimensions, 16,777,216 raster pixels) require actual-device measurement.
