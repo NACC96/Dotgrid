@@ -2,7 +2,7 @@
 
 Recorded October 10, 2026. Software implementation is present locally; **first-release acceptance is incomplete** until an actual iPad/Pencil passes the device checklist and a permanent production origin is accepted.
 
-The reviewed plan remains unchanged. Its SHA-256 is `643772baec72fedbf747fd3ab558006162c80b969d75a90fee87e4150eef2d7d`. Upstream baseline is `af10366e69ae02bc36cc81522cdd6fbf7ea17238`; implementation branch is `feat/ipad-pwa`. Candidate runtime source commit is `2357eec06bc22d72db4de61e043fc37d936893f4`.
+The reviewed plan remains unchanged. Its SHA-256 is `643772baec72fedbf747fd3ab558006162c80b969d75a90fee87e4150eef2d7d`. Upstream baseline is `af10366e69ae02bc36cc81522cdd6fbf7ea17238`; implementation branch is `feat/ipad-pwa`. Candidate runtime source commit is `dc4260269ba1e8c7f630d8517924f242fcabf3e7`.
 
 ## Delivered software
 
@@ -25,7 +25,7 @@ The runtime editor remains one plain JavaScript bundle. Packaging uses external 
 
 `npm test` runs syntax checks, Node tests, a deterministic build and the Chromium/WebKit browser suite. Lint here means JavaScript syntax validation; no static typechecker or stylistic lint is configured.
 
-The complete integration suite passed **59 Node tests and 78 browser tests** (39 each in Chromium and WebKit), including a newer draft behind an older save, copy creation failure and retained exportable artwork.
+The complete integration suite passed **59 Node tests and 78 browser tests** (39 each in Chromium and WebKit), including a newer draft behind an older save, copy creation failure, suspension during copying and retained exportable artwork.
 
 The suite exercises full undo state, pointer cancellation/ownership, legacy appended quadratic geometry, fresh bounded exports and transparent painter order, real IndexedDB abort/reopen/conflicts/recovery, stale save completions across project generations, exclusive New/import/delete transitions, explicit editor recovery, failed project switches retaining the draft after backup, concurrent rename conflicts, capability errors, cold offline launch and save, cache repair, two-editor update freezing, pending/failed/unresponsive update deferral, compatible recovery releases, and missing/wrong-MIME/wrong-digest precache failures preserving the preceding release. Browser pen contacts are synthetic with a capture test surface; mouse contacts use the actual browser pointer path.
 
@@ -53,4 +53,4 @@ The complete ce-code-review receipt is run `20261010-115608-b6721c24` under `/tm
 
 ## Release state
 
-The user authorized a GitHub fork and Cloudflare Pages preview. The fork is [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid); the ready-for-review branch is `feat/ipad-pwa`. The application release is `f42541e24f66e2e55434` with project/IndexedDB schema version 1. Cloudflare project creation awaits the Git integration versus Direct Upload decision, because that mode cannot be converted later. No preview is deployed yet. Production is not approved by a desktop test result. Provisional limits (10 MiB JSON, 50k geometry items, 10k dimensions, 16,777,216 raster pixels) require actual-device measurement.
+The user authorized a GitHub fork and Cloudflare Pages preview. The fork is [NACC96/Dotgrid](https://github.com/NACC96/Dotgrid); the ready-for-review branch is `feat/ipad-pwa`. The application release is `0aef244274ca03a91f63` with project/IndexedDB schema version 1. Cloudflare project creation awaits the Git integration versus Direct Upload decision, because that mode cannot be converted later. No preview is deployed yet. Production is not approved by a desktop test result. Provisional limits (10 MiB JSON, 50k geometry items, 10k dimensions, 16,777,216 raster pixels) require actual-device measurement.
