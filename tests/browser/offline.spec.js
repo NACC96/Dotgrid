@@ -11,7 +11,12 @@ test.beforeAll(async () => {
   artifact = build({ outDir: path.join(directory, 'dist'), writeLegacy: false })
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.txt': 'text/plain' }
   server = http.createServer((req, res) => {
-    const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html'
+    const pathname = new URL(req.url, 'http://localhost').pathname
+    if (pathname === '/index.html' || pathname === '/404.html') {
+      res.writeHead(301, { Location: pathname === '/index.html' ? '/' : '/404' }).end()
+      return
+    }
+    const name = pathname === '/404' ? '404.html' : pathname.slice(1) || 'index.html'
     const file = path.resolve(artifact.outDir, name)
     if (!file.startsWith(artifact.outDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404).end('Not found'); return }
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'text/plain', 'Cache-Control': 'no-cache', 'Content-Security-Policy': fs.readFileSync(path.join(artifact.outDir, '_headers'), 'utf8').match(/Content-Security-Policy: (.+)/)[1] })

@@ -29,7 +29,12 @@ test.beforeAll(async () => {
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.txt': 'text/plain' }
   server = http.createServer((req, res) => {
     if (disconnected) { res.writeHead(503, { 'Content-Type': 'text/plain' }).end('Fixture network unavailable'); return }
-    const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html'
+    const pathname = new URL(req.url, 'http://localhost').pathname
+    if (pathname === '/index.html' || pathname === '/404.html') {
+      res.writeHead(301, { Location: pathname === '/index.html' ? '/' : '/404' }).end()
+      return
+    }
+    const name = pathname === '/404' ? '404.html' : pathname.slice(1) || 'index.html'
     const root = releases[selected].outDir
     const file = path.resolve(root, name)
     if (broken?.name === name) {

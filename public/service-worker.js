@@ -37,7 +37,7 @@ async function fillCache () {
     // Race the whole response verification, including body reads and hashing.
     // Aborting fetch alone cannot cancel a stalled digest promise.
     responses = await Promise.race([
-      Promise.all(PRECACHE.map(async entry => validResponse(await fetch(new URL(entry.url, ROOT), { cache: 'reload', credentials: 'same-origin', signal: controller.signal }), entry))),
+      Promise.all(PRECACHE.map(async entry => validResponse(await fetch(new URL(entry.fetchUrl ?? entry.url, ROOT), { cache: 'reload', credentials: 'same-origin', signal: controller.signal }), entry))),
       deadline
     ])
   } catch (error) {

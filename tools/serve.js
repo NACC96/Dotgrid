@@ -9,7 +9,7 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 http.createServer((req, res) => {
   let pathname
   try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname) } catch { res.writeHead(400).end(); return }
-  const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname))
+  const file = path.resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname === '/404' ? '/404.html' : pathname))
   if (!file.startsWith(root + path.sep) || /(^|\/)\./.test(pathname) || !['GET', 'HEAD'].includes(req.method)) { res.writeHead(404).end(); return }
   fs.stat(file, (err, stat) => {
     if (err || !stat.isFile()) { res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found'); return }

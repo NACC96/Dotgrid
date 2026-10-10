@@ -73,7 +73,7 @@ function build (options = {}) {
   const release = digest([...output.entries()].map(([name, bytes]) => name + ':' + digest(bytes)).join('\n') + workerTemplate + shell(jsAsset, cssAsset, '')).slice(0, 20)
   output.set('index.html', Buffer.from(shell(jsAsset, cssAsset, release)))
   const types = { '.html': 'text/html', '.js': 'javascript', '.css': 'text/css', '.webmanifest': 'manifest', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain' }
-  const precache = [...output.entries()].filter(([name]) => name !== '_headers').map(([url, bytes]) => ({ url, type: types[path.extname(url)], sha256: digest(bytes) }))
+  const precache = [...output.entries()].filter(([name]) => name !== '_headers').map(([url, bytes]) => ({ url, fetchUrl: url === 'index.html' ? './' : url === '404.html' ? '404' : url, type: types[path.extname(url)], sha256: digest(bytes) }))
   output.set('service-worker.js', Buffer.from(workerTemplate.replace('__RELEASE__', JSON.stringify(release)).replace('__PRECACHE__', JSON.stringify(precache, null, 2))))
   fs.rmSync(outDir, { recursive: true, force: true })
   for (const [name, bytes] of output) {

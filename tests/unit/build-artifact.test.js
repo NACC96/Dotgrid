@@ -54,6 +54,7 @@ test('distribution is deterministic, explicit, external-script CSP compatible an
   assert.match(worker, new RegExp(first.release))
   assert.doesNotMatch(worker, /__PRECACHE__|__RELEASE__/)
   for (const entry of first.precache) {
+    assert.equal(entry.fetchUrl, entry.url === 'index.html' ? './' : entry.url === '404.html' ? '404' : entry.url)
     assert.equal(digest(fs.readFileSync(path.join(options.outDir, entry.url))), entry.sha256)
     assert.ok(entry.type)
   }
