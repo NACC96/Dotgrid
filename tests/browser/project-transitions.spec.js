@@ -188,6 +188,12 @@ test('Save as copy waits for an older save and preserves a newer draft without r
   await page.evaluate(() => window.releaseStorage())
   expect(await page.evaluate(() => window.originalSave)).toBe(false)
   await expect.poll(() => page.evaluate(() => window.copyCreates)).toBe(1)
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    window.dispatchEvent(new Event('pagehide'))
+    delete document.hidden
+  })
   // Keep copy creation pending long enough for the older save's finally timer
   // and the newer edit's autosave timer to fire if they were not cancelled.
   await page.waitForTimeout(100)

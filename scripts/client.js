@@ -20,6 +20,7 @@ function Client() {
   let saveTimer = 0
   let noticeTimer = 0
   let projectGeneration = 0
+  let copying = false
   const formTarget = (target) =>
     target &&
     (target.closest('input,select,textarea,[contenteditable=true]') ||
@@ -248,6 +249,7 @@ function Client() {
   }
   this.saveDraft = () => {
     if (this._saving) return this._saving
+    if (copying) return Promise.resolve(false)
     if (this.conflict || this.recoveryPending) return Promise.resolve(false)
     if (this.savedDocumentRevision === this.document.revision && this.record)
       return Promise.resolve(true)
@@ -372,6 +374,8 @@ function Client() {
     }
   }
   this.saveAsCopy = async () => {
+    if (copying) return false
+    copying = true
     const previousFreeze = this.editFrozen
     this.editFrozen = true
     this.input.cancelAll()
@@ -399,6 +403,7 @@ function Client() {
         this.saveState = this.conflict ? 'Conflict' : 'Save failed'
       this.reportError(error)
     } finally {
+      copying = false
       this.editFrozen = previousFreeze
       this.update()
     }
